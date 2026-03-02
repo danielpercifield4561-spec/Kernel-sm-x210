@@ -30,11 +30,15 @@ jobs:
           if ! grep -q "kernel/ certs/ mm/" Makefile; then
               sed -i '/core-y.*:=.*init/a core-y += kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/' Makefile
           fi
-          # Download the latest legacy branch directly from the source!
           git clone -b legacy https://github.com/KernelSU-Next/KernelSU-Next /tmp/ksun
           mv /tmp/ksun/kernel drivers/kernelsu
           sed -i '/kernelsu/d' drivers/Makefile || true
           echo "obj-y += kernelsu/" >> drivers/Makefile
+          
+          # 🔗 THE FIX: Link KernelSU's config into the main kernel config tree
+          sed -i '/kernelsu/d' drivers/Kconfig || true
+          echo 'source "drivers/kernelsu/Kconfig"' >> drivers/Kconfig
+
      
       - name: 🩹 Apply Deep Source Code Fixes
         run: |
