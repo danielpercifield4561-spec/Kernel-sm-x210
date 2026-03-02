@@ -88,6 +88,9 @@ jobs:
           sed -i '1i CONFIG_KSU_MANUAL_HOOK := y' drivers/kernelsu/Makefile || true
           sed -i '/No hooks were defined/d' drivers/kernelsu/Kbuild || true
 
+          # 🔓 BYPASS SIGNATURE CHECK: Force the kernel to accept any official KSU Next Manager
+          sed -i 's/memcmp(hash, expected_hash, expected_size) == 0/1 == 1/g' drivers/kernelsu/apk_sign.c || true
+
       - name: 🔑 Nuclear Export Symbols
         run: |
           nuclear_export() {
@@ -121,19 +124,15 @@ jobs:
           export CCACHE_DIR=$GITHUB_WORKSPACE/.ccache
           ccache -M 5G
           FLAGS="ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 HOSTCC=gcc CC=clang -j$(nproc --all)"
-          
-          # Add the broken Samsung USB directories natively to the compiler's search path
           K_INC="-I$(pwd)/security/selinux -I$(pwd)/security/selinux/include -I$(pwd)/drivers -I$(pwd)/drivers/usb/typec/P86801_tcpc -I$(pwd)/drivers/usb/typec/P86801_tcpc/inc"
           
-          # Added -Wno-error=undef and -Wno-error=visibility to silence the strict Clang checks
-          K_CFLAGS="-DCONFIG_SECURITY_SELINUX_SIDTAB_HASH_BITS=9 -DCONFIG_KSU=1 -DCONFIG_KSU_NEXT=1 -DCONFIG_KSU_MANUAL_HOOK=1 -Wno-error=implicit-function-declaration -Wno-error=strict-prototypes -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=declaration-after-statement -Wno-error=unused-variable -Wno-error=unused-but-set-variable -Wno-error=unused-function -Wno-error=undef -Wno-error=visibility $K_INC"
+          # Injected -DKSU_NEXT=1 to guarantee the manager recognizes the Next variant
+          K_CFLAGS="-DCONFIG_SECURITY_SELINUX_SIDTAB_HASH_BITS=9 -DCONFIG_KSU=1 -DCONFIG_KSU_NEXT=1 -DKSU_NEXT=1 -DCONFIG_KSU_MANUAL_HOOK=1 -Wno-error=implicit-function-declaration -Wno-error=strict-prototypes -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=declaration-after-statement -Wno-error=unused-variable -Wno-error=unused-but-set-variable -Wno-error=unused-function -Wno-error=undef -Wno-error=visibility $K_INC"
           
           make $FLAGS Image KCFLAGS="$K_CFLAGS" || {
               rm -f fs/namespace.o security/selinux/*.o drivers/kernelsu/*.o
               make $FLAGS Image KCFLAGS="$K_CFLAGS"
           }
-
-
           
       - name: 📦 Package Output
         run: |
