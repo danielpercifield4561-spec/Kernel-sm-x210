@@ -114,29 +114,15 @@ jobs:
           ./scripts/config --file .config --disable TRIM_UNUSED_KSYMS
           yes "" | make ARCH=arm64 HOSTCC=gcc CC="clang --target=aarch64-linux-gnu" CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
    
-      - name: 🔨 Resolve SELinux Headers
-        run: |
-          mkdir -p security/selinux/include
-          cat <<EOF > security/selinux/include/flask.h
-          #ifndef _SELINUX_FLASK_H_
-          #define _SELINUX_FLASK_H_
-          #define SECCLASS_PROCESS 1
-          #define SECCLASS_FILE 2
-          #define SECINITSID_KERNEL 1
-          #define SECINITSID_NUM 27
-          #define CONFIG_SECURITY_SELINUX_SIDTAB_HASH_BITS 9
-          #endif
-          EOF
-          touch security/selinux/include/av_permissions.h
-          cp security/selinux/include/flask.h drivers/kernelsu/flask.h || true
-
       - name: 🔨 Compile
         run: |
           export CCACHE_DIR=$GITHUB_WORKSPACE/.ccache
           ccache -M 5G
           FLAGS="ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 HOSTCC=gcc CC=clang -j$(nproc --all)"
           K_INC="-I$(pwd)/security/selinux -I$(pwd)/security/selinux/include -I$(pwd)/drivers"
-          K_CFLAGS="-Wno-error=implicit-function-declaration -Wno-error=strict-prototypes -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=declaration-after-statement -Wno-error=unused-variable -Wno-error=unused-but-set-variable -Wno-error=unused-function $K_INC"
+          
+          # Injected the SIDTAB hash bit directly into the compiler so we don't need a fake flask.h
+          K_CFLAGS="-DCONFIG_SECURITY_SELINUX_SIDTAB_HASH_BITS=9 -Wno-error=implicit-function-declaration -Wno-error=strict-prototypes -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=declaration-after-statement -Wno-error=unused-variable -Wno-error=unused-but-set-variable -Wno-error=unused-function $K_INC"
           
           make $FLAGS Image KCFLAGS="$K_CFLAGS" || {
               rm -f fs/namespace.o security/selinux/*.o drivers/kernelsu/*.o
