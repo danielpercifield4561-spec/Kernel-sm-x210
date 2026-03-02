@@ -107,9 +107,6 @@ jobs:
       - name: ⚙️ Kernel Config
         run: |
           export ARCH=arm64
-          REAL_DEFCONFIG=$(find arch/arm64/configs -name "gta9pwifi_eur_open_defconfig" | head -n 1)
-          cp "$REAL_DEFCONFIG" arch/arm64/configs/gta9pwifi_eur_open_defconfig
-          
           make ARCH=arm64 HOSTCC=gcc CC="clang --target=aarch64-linux-gnu" CROSS_COMPILE=aarch64-linux-gnu- gta9pwifi_eur_open_defconfig
           ./scripts/config --file .config --enable KSU
           ./scripts/config --file .config --enable KSU_NEXT
