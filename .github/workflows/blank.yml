@@ -26,8 +26,7 @@ jobs:
  
       - name: 📥 Integrate KernelSU-Next
         run: |
-          cd kernel_workspace/android-kernel
-          # THIS IS THE MAGIC LINE: Pulling the "Next" source code instead of "tiann"
+          # Just run the magic line directly!
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
      
       - name: 🩹 Apply Deep Source Code Fixes
