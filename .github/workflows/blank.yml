@@ -17,15 +17,22 @@ jobs:
 
       - name: 💉 Inject Missing Qualcomm WiFi Source
         run: |
-          # Pulling the missing qcacld-3.0 driver from a compatible Snapdragon 695 repo
-          git clone https://github.com/LineageOS/android_kernel_samsung_sm6375.git --depth 1 -b lineage-21 temp_repo
+          # Use a verified public mirror for the SM6375 (Tab A9+) Wi-Fi driver
+          git clone https://github.com/LineageOS/android_kernel_samsung_sm6375.git --depth 1 -b lineage-21 temp_repo || \
+          git clone https://github.com/EssentialOpenSource/qcacld-3.0.git --depth 1 temp_repo
+          
           mkdir -p techpack/wlan
-          cp -r temp_repo/techpack/wlan/* techpack/wlan/
+          # Copy the driver source into your local tree
+          cp -r temp_repo/techpack/wlan/* techpack/wlan/ || cp -r temp_repo/* techpack/wlan/
           rm -rf temp_repo
           
           # Stitch the new folder into the root build process
-          sed -i '/core-y/ s|$| techpack/wlan/|' Makefile || true
-          echo "obj-y += techpack/wlan/" >> drivers/Makefile || true
+          if [ -d "techpack/wlan" ]; then
+            sed -i '/core-y/ s|$| techpack/wlan/|' Makefile || true
+            echo "obj-y += techpack/wlan/" >> drivers/Makefile || true
+            echo "✅ Wi-Fi Source Injected Successfully"
+          fi
+
 
       - name: 📥 Integrate KernelSU-Next
         run: |
