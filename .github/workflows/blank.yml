@@ -119,10 +119,16 @@ jobs:
           nuclear_export "hashtab_insert"
           nuclear_export "do_umount"
 
-      - name: ⚙️ Stitch WLAN into Build
+      - name: 🔍 Final Hardware Search
         run: |
-          # Force the main Makefile to visit the hidden WLAN directory
-          echo "obj-y += vendor/qcom/opensource/wlan/qcacld-3.0/" >> drivers/Makefile
+          echo "--- Searching all directories for WLAN source ---"
+          # This will search the entire project, not just drivers
+          find . -name "Kbuild" | grep -i "wlan" || echo "Kbuild not found"
+          find . -name "qcacld*" -type d || echo "qcacld directory not found"
+          
+          echo "--- Checking Root Techpack structure ---"
+          ls -F techpack/
+
 
       - name: ⚙️ Kernel Config & Hardware Force-In
         run: |
