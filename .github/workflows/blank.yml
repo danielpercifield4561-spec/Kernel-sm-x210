@@ -63,12 +63,23 @@ jobs:
           sed -i '/#define TRACE_INCLUDE_PATH/c\#define TRACE_INCLUDE_PATH ../../kernel/sched/walt' kernel/sched/walt/trace.h || true
           sed -i 's|register unsigned long current_stack_pointer asm ("sp");|#define current_stack_pointer ({ unsigned long sp; asm("mov %0, sp" : "=r"(sp)); sp; })|g' arch/arm64/include/asm/stack_pointer.h || true
           
-          # 8. KERNELSU COMPATIBILITY & SECCOMP FIX
+      - name: 8. KERNELSU COMPATIBILITY & SECCOMP FIX
+        run: |
+          cd kernel_workspace/android-kernel
           mkdir -p drivers/kernelsu/kernel
           cp drivers/kernelsu/ksu.h drivers/kernelsu/kernel/ksu.h || true
+          
+          # 🛑 LEGACY 5.4 BACKPORT FIXES (Fixes TWA_RESUME and missing includes)
+          sed -i 's/TWA_RESUME/true/g' drivers/kernelsu/allowlist.c || true
+          sed -i '1i #include <linux/sched/task.h>' drivers/kernelsu/allowlist.c || true
+          
+          # 🛑 SECCOMP BYPASS FIXES (Fixes filter_count and mode errors)
+          sed -i 's/.*seccomp.filter_count.*/\/\/ filter_count reset/g' drivers/kernelsu/app_profile.c || true
           sed -i 's/if (!!!current->seccomp.mode)/if (0)/g' drivers/kernelsu/app_profile.c || true
           sed -i 's/.*current->seccomp.mode =.*/\/\/ mode reset/g' drivers/kernelsu/app_profile.c || true
           sed -i 's/.*current->seccomp.filter =.*/\/\/ filter reset/g' drivers/kernelsu/app_profile.c || true
+          
+          # SELinux Struct Fixes
           sed -i 's/struct selinux_state/struct ksu_selinux_state/g' drivers/kernelsu/selinux/selinux.h || true
           sed -i 's/struct selinux_state/struct ksu_selinux_state/g' drivers/kernelsu/selinux/selinux.c || true
           
