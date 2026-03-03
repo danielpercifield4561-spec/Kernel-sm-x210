@@ -62,8 +62,11 @@ jobs:
           sed -i '/extern unsigned long vdso_offset_/d' arch/arm64/include/asm/vdso.h || true
           sed -i '/#define TRACE_INCLUDE_PATH/c\#define TRACE_INCLUDE_PATH ../../kernel/sched/walt' kernel/sched/walt/trace.h || true
           sed -i 's|register unsigned long current_stack_pointer asm ("sp");|#define current_stack_pointer ({ unsigned long sp; asm("mov %0, sp" : "=r"(sp)); sp; })|g' arch/arm64/include/asm/stack_pointer.h || true
+
+          # 8. Force WLAN techpack to build
+          echo "obj-y += techpack/wlan/" >> drivers/Makefile || true
           
-      - name: 8. KERNELSU COMPATIBILITY & SECCOMP FIX
+      - name: KERNELSU COMPATIBILITY & SECCOMP FIX
         run: |
           mkdir -p drivers/kernelsu/kernel
           cp drivers/kernelsu/ksu.h drivers/kernelsu/kernel/ksu.h || true
