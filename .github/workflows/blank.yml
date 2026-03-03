@@ -68,18 +68,22 @@ jobs:
           mkdir -p drivers/kernelsu/kernel
           cp drivers/kernelsu/ksu.h drivers/kernelsu/kernel/ksu.h || true
           
-          # 🛑 LEGACY 5.4 BACKPORT FIXES (Global TWA_RESUME fix)
+          # 🛑 LEGACY 5.4 BACKPORT FIXES (Global TWA_RESUME, pgtable, strncpy, and copy_user)
           sed -i 's/TWA_RESUME/true/g' drivers/kernelsu/*.c || true
           sed -i '1i #include <linux/sched/task.h>' drivers/kernelsu/allowlist.c || true
           sed -i '1i #include <linux/sched/task.h>' drivers/kernelsu/setuid_hook.c || true
           sed -i 's/#include <linux\/pgtable.h>/#include <asm\/pgtable.h>/g' drivers/kernelsu/*.c || true
           sed -i 's/strncpy_from_user_nofault/strncpy_from_unsafe_user/g' drivers/kernelsu/*.c || true
+          sed -i 's/copy_from_user_nofault/copy_from_user/g' drivers/kernelsu/*.c || true
+          sed -i 's/copy_to_user_nofault/copy_to_user/g' drivers/kernelsu/*.c || true
           
           # 🛑 FSNOTIFY BYPASS (Bypasses the broken pkg_observer API on 5.4)
           echo "void ksu_pkg_observer_init(void) {}" > drivers/kernelsu/pkg_observer.c
           echo "void ksu_pkg_observer_exit(void) {}" >> drivers/kernelsu/pkg_observer.c
           
-          # 🛑 SECCOMP BYPASS FIXES (Fixes filter_count and mode errors)
+          # 🛑 SECCOMP CACHE AND BYPASS FIXES (Fixes filter_count, mode, and syscall definitions)
+          sed -i '1i #include <asm/unistd.h>' drivers/kernelsu/seccomp_cache.c || true
+          sed -i 's/SECCOMP_ARCH_NATIVE_NR/__NR_syscalls/g' drivers/kernelsu/seccomp_cache.c || true
           sed -i 's/.*seccomp.filter_count.*/\/\/ filter_count reset/g' drivers/kernelsu/app_profile.c || true
           sed -i 's/if (!!!current->seccomp.mode)/if (0)/g' drivers/kernelsu/app_profile.c || true
           sed -i 's/.*current->seccomp.mode =.*/\/\/ mode reset/g' drivers/kernelsu/app_profile.c || true
