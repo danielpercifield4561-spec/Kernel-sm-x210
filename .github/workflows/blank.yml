@@ -119,6 +119,11 @@ jobs:
           nuclear_export "hashtab_insert"
           nuclear_export "do_umount"
 
+      - name: ⚙️ Stitch WLAN into Build
+        run: |
+          # Force the main Makefile to visit the hidden WLAN directory
+          echo "obj-y += vendor/qcom/opensource/wlan/qcacld-3.0/" >> drivers/Makefile
+
       - name: ⚙️ Kernel Config & Hardware Force-In
         run: |
           # 1. Initialize the base Samsung config
