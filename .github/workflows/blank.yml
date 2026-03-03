@@ -65,7 +65,6 @@ jobs:
           
       - name: 8. KERNELSU COMPATIBILITY & SECCOMP FIX
         run: |
-          cd kernel_workspace/android-kernel
           mkdir -p drivers/kernelsu/kernel
           cp drivers/kernelsu/ksu.h drivers/kernelsu/kernel/ksu.h || true
           
