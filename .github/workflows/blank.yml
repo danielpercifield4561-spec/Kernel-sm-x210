@@ -116,16 +116,29 @@ jobs:
           nuclear_export "hashtab_insert"
           nuclear_export "do_umount"
 
-      - name: ⚙️ Kernel Config
+      - name: ⚙️ Kernel Config & Hardware Force-In
         run: |
-          export ARCH=arm64
-          make ARCH=arm64 HOSTCC=gcc CC="clang --target=aarch64-linux-gnu" CROSS_COMPILE=aarch64-linux-gnu- gta9pwifi_eur_open_defconfig
-          ./scripts/config --file .config --enable KSU
-          ./scripts/config --file .config --enable KSU_NEXT
-          ./scripts/config --file .config --enable KSU_MANUAL_HOOK
-          ./scripts/config --file .config --disable LTO_CLANG
-          ./scripts/config --file .config --disable TRIM_UNUSED_KSYMS
-          yes "" | make ARCH=arm64 HOSTCC=gcc CC="clang --target=aarch64-linux-gnu" CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
+          # 1. Initialize the base Samsung config
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gta9pwifi_eur_open_defconfig
+          
+          # 2. FORCE HARDWARE TO BE BUILT-IN (The Wi-Fi & Sensor Fix)
+          ./scripts/config --file .config --enable CONFIG_WLAN
+          ./scripts/config --file .config --set-val CONFIG_QCACLD_WLAN y
+          ./scripts/config --file .config --enable CONFIG_INPUT_SENSORHUB
+          ./scripts/config --file .config --enable CONFIG_SENSORS_SSC
+          ./scripts/config --file .config --enable CONFIG_IIO
+          
+          # 3. KERNELSU NEXT COMPATIBILITY
+          ./scripts/config --file .config --enable CONFIG_KSU
+          ./scripts/config --file .config --enable CONFIG_KSU_NEXT
+          ./scripts/config --file .config --disable CONFIG_LTO_CLANG
+          ./scripts/config --file .config --disable CONFIG_TRIM_UNUSED_KSYMS
+          
+          # 4. IDENTITY MATCH (Replace with your stock kernel suffix if known)
+          ./scripts/config --file .config --set-str CONFIG_LOCALVERSION "-everything-works"
+
+          # 5. Finalize the config
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
    
       - name: 🔨 Compile
         run: |
