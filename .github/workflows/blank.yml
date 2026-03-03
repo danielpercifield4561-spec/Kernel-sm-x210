@@ -121,6 +121,11 @@ jobs:
           export CCACHE_DIR=$GITHUB_WORKSPACE/.ccache
           ccache -M 5G
           FLAGS="ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 HOSTCC=gcc CC=clang -j$(nproc --all)"
+          
+          # 🛑 THE FAKE ID FIX: Force Samsung's exact Wi-Fi/Bluetooth string
+          echo "-28972655-abX210XXS6CYB9" > .scmversion
+          sed -i 's/echo "-dirty"/echo ""/g' scripts/setlocalversion || true
+          
           K_INC="-I$(pwd)/security/selinux -I$(pwd)/security/selinux/include -I$(pwd)/drivers -I$(pwd)/drivers/usb/typec/P86801_tcpc -I$(pwd)/drivers/usb/typec/P86801_tcpc/inc"
           
           # Injected -DKSU_NEXT=1 to guarantee the manager recognizes the Next variant
@@ -130,6 +135,7 @@ jobs:
               rm -f fs/namespace.o security/selinux/*.o drivers/kernelsu/*.o
               make $FLAGS Image KCFLAGS="$K_CFLAGS"
           }
+
 
           
       - name: 📦 Package Output
