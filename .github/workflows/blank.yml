@@ -89,11 +89,13 @@ jobs:
           sed -i 's/.*current->seccomp.mode =.*/\/\/ mode reset/g' drivers/kernelsu/app_profile.c || true
           sed -i 's/.*current->seccomp.filter =.*/\/\/ filter reset/g' drivers/kernelsu/app_profile.c || true
           
-          # 🛑 SELINUX STRUCT AND TRANSITION FIXES (Silences the missing 5.4 structs)
+          # 🛑 SELINUX STRUCT AND TRANSITION FIXES (Silences the missing 5.4 structs and fixes policy pointers)
           sed -i 's/struct selinux_state/struct ksu_selinux_state/g' drivers/kernelsu/selinux/selinux.h || true
           sed -i 's/struct selinux_state/struct ksu_selinux_state/g' drivers/kernelsu/selinux/selinux.c || true
           sed -i 's/struct filename_trans_key key;/return true;\n#if 0/g' drivers/kernelsu/selinux/sepolicy.c || true
           sed -i 's/return ebitmap_set_bit(&trans->stypes, src->value - 1, 1) == 0;/#endif/g' drivers/kernelsu/selinux/sepolicy.c || true
+          sed -i 's/struct selinux_policy \*policy = selinux_state.policy;//g' drivers/kernelsu/selinux/*.c || true
+          sed -i 's/&policy->policydb/\&selinux_state.ss->policydb/g' drivers/kernelsu/selinux/*.c || true
           
           # Force Manual Hook bypass in KSU Makefiles
           sed -i '1i CONFIG_KSU_MANUAL_HOOK := y' drivers/kernelsu/Kbuild || true
