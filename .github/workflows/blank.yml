@@ -155,15 +155,16 @@ jobs:
           
           K_INC="-I$(pwd)/security/selinux -I$(pwd)/security/selinux/include -I$(pwd)/drivers -I$(pwd)/drivers/usb/typec/P86801_tcpc -I$(pwd)/drivers/usb/typec/P86801_tcpc/inc"
           
-          # Injected -DKSU_NEXT=1 to guarantee the manager recognizes the Next variant
+          # Added -DKSU_NEXT=1 to guarantee the manager recognizes the Next variant
           K_CFLAGS="-DCONFIG_SECURITY_SELINUX_SIDTAB_HASH_BITS=9 -DCONFIG_KSU=1 -DCONFIG_KSU_NEXT=1 -DKSU_NEXT=1 -DCONFIG_KSU_MANUAL_HOOK=1 -Wno-error=implicit-function-declaration -Wno-error=strict-prototypes -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=declaration-after-statement -Wno-error=unused-variable -Wno-error=unused-but-set-variable -Wno-error=unused-function -Wno-error=undef -Wno-error=visibility $K_INC"
           
+          # Clean build to ensure Hardware Force-In takes effect
+          make $FLAGS clean || true
           make $FLAGS Image KCFLAGS="$K_CFLAGS" || {
-              rm -f fs/namespace.o security/selinux/*.o drivers/kernelsu/*.o
+              # If it fails, clear specific problematic objects and retry
+              find . -name "*.o" -type f -delete
               make $FLAGS Image KCFLAGS="$K_CFLAGS"
           }
-
-
           
       - name: 📦 Package Output
         run: |
