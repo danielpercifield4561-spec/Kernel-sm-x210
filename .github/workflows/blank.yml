@@ -17,23 +17,23 @@ jobs:
 
       - name: 🩹 Apply Deep Source Code Fixes
         run: |
-          # 1. Strip 'q' from version strings in all files
+          # 1. STRIP 'q' from version strings
           find . -type f -name "gta9pwifi_eur_open_defconfig" -exec sed -i 's/qgki/gki/g' {} + || true
           sed -i 's/qgki/gki/g' Makefile || true
           
-          # 2. USB-C Header Flattener (Essential for successful compile)
+          # 2. USB-C HEADER FLATTENER (Essential to fix the tcpci.h error)
           find drivers/usb/typec -type d -name "inc" | while read -r incdir; do
             parent=$(dirname "$incdir")
             cp -r "$incdir"/* "$parent/" || true
           done
           find drivers/usb/typec -type f -exec sed -i 's|#include "inc/|#include "|g' {} +
           
-          # 3. Fix Minidump and Display syntax errors
+          # 3. FIX MINIDUMP & DISPLAY SYNTAX
           sed -i 's/static md_dump_slabinfo/static int md_dump_slabinfo/g' drivers/soc/qcom/minidump_log.c || true
           sed -i 's/static md_align_offset/static int md_align_offset/g' drivers/soc/qcom/minidump_log.c || true
           find techpack/display -name "*.c" -exec sed -i 's/static inline _/static inline u32 _/g' {} + || true
 
-          # 4. Nuclear Makefile fix: remove all local -Werror rules
+          # 4. NUCLEAR MAKEFILE CLEANUP (Removes -Werror from every folder)
           find . -name "Makefile" -o -name "Kbuild" | xargs sed -i 's/-Werror//g' || true
 
       - name: ⚙️ Kernel Config & Hardware Force-In
@@ -41,7 +41,7 @@ jobs:
           # Load the base config
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gta9pwifi_eur_open_defconfig
           
-          # FORCE WIFI TO BE BUILT-IN (Fixes WiFi not working after name change)
+          # FORCE WIFI/BT TO BE BUILT-IN (Fixes WiFi not working after name change)
           ./scripts/config --file .config --set-val CONFIG_WLAN y
           ./scripts/config --file .config --set-val CONFIG_QCACLD_WLAN y
           ./scripts/config --file .config --set-val CONFIG_WLAN_VENDOR_QCOM y
@@ -60,15 +60,28 @@ jobs:
       - name: 🔨 Compile
         run: |
           # Matches the stock fingerprint but with your -gki name
-          echo "-gki" > .scmversion
+          # This is the "Chemist" fix that lets the WiFi chip trust the kernel
+          echo "-28972655-abX210XXS6CYB9" > .scmversion
           
           export ARCH=arm64
           FLAGS="ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 HOSTCC=gcc CC=clang -j$(nproc --all)"
           
-          # Use -w to ignore all messy Samsung warnings so build finishes
-          K_CFLAGS="-w -D__LINUX_ARM_ARCH__=8 -I$(pwd)/security/selinux/include -I$(pwd)/drivers"
+          # THE NUCLEAR COMPILE FIX: '-w' ignores ALL warnings. 
+          # No more 'file not found' errors for compiler flags!
+          K_INC="-I$(pwd)/security/selinux/include -I$(pwd)/drivers"
+          K_CFLAGS="-w -D__LINUX_ARM_ARCH__=8 $K_INC"
           
           make $FLAGS Image KCFLAGS="$K_CFLAGS" 2>&1 | tee build.log
+
+      - name: 📋 Build Summary
+        if: always()
+        run: |
+          echo "::group::⚠️ VIEW ALL WARNINGS"
+          grep -i "warning:" build.log || echo "No warnings found."
+          echo "::endgroup::"
+          echo "::group::❌ VIEW ALL ERRORS"
+          grep -i "error:" build.log || echo "No errors found."
+          echo "::endgroup::"
 
       - name: 📦 Package Output
         if: success()
@@ -77,7 +90,7 @@ jobs:
             git clone https://github.com/osm0sis/AnyKernel3.git
             sed -i 's/do.devicecheck=1/do.devicecheck=0/g' AnyKernel3/anykernel.sh
             cp arch/arm64/boot/Image AnyKernel3/
-            cd AnyKernel3 && zip -r9 ../TabA9Plus-GKI-Fixed.zip *
+            cd AnyKernel3 && zip -r9 ../TabA9Plus-GKI-WiFi-Fixed.zip *
           else
             echo "Error: Kernel Image not found!"
             exit 1
@@ -87,5 +100,5 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: TabA9Plus-GKI-Fixed
-          path: TabA9Plus-GKI-Fixed.zip
+          name: TabA9Plus-GKI-WiFi-Fixed
+          path: TabA9Plus-GKI-WiFi-Fixed.zip
