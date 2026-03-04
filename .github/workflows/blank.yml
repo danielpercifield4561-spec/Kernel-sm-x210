@@ -39,6 +39,8 @@ jobs:
           sed -i 's/static md_dump_slabinfo/static int md_dump_slabinfo/g' drivers/soc/qcom/minidump_log.c || true
           sed -i 's/static md_align_offset/static int md_align_offset/g' drivers/soc/qcom/minidump_log.c || true
 
+          find . -name "Makefile" -o -name "Kbuild" | xargs sed -i 's/-Werror//g' || true
+
       - name: ⚙️ Kernel Config & Hardware Force-In
         run: |
           # Use the patched defconfig
@@ -64,7 +66,7 @@ jobs:
           
           # Normal compiler flags without KSU definitions
           K_CFLAGS="-Wno-error -Wno-strict-prototypes -Wno-implicit-function-declaration"
-          
+          -Wno-error=unused-but-set-variable
           make $FLAGS Image KCFLAGS="$K_CFLAGS" 2>&1 | tee build.log
 
       - name: 📋 Build Summary
