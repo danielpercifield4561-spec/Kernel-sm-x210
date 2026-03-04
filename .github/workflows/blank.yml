@@ -21,21 +21,24 @@ jobs:
      
       - name: 🩹 Apply Deep Source Code Fixes
         run: |
-          # 🛑 FIX: WALT TRACING (Solves the './trace.h' file not found error)
+          # 🛑 FIX: TWA_RESUME (Solves the 'undeclared identifier' error in allowlist.c)
+          sed -i 's/TWA_RESUME/true/g' drivers/kernelsu/*.c || true
+          
+          # 🛑 FIX: WALT TRACING (Solves './trace.h' file not found)
           sed -i 's|#define TRACE_INCLUDE_PATH .|#define TRACE_INCLUDE_PATH ../../kernel/sched/walt|g' kernel/sched/walt/trace.h || true
           
-          # 🛑 FIX: ZSMALLOC PROTOTYPE (Solves the 'function without a prototype' error)
+          # 🛑 FIX: ZSMALLOC PROTOTYPE (Solves 'function without a prototype' error)
           sed -i 's/void try_schedule_zs_compact()/void try_schedule_zs_compact(void)/g' mm/zsmalloc.c || true
 
           # 🛑 FIX: KERNEL 5.4 SECCOMP ERRORS
           sed -i 's/atomic_set(&current->seccomp.filter_count, 0);/\/\/ filter_count bypass/g' drivers/kernelsu/app_profile.c || true
           sed -i 's/current->seccomp.mode = 0;/\/\/ mode bypass/g' drivers/kernelsu/app_profile.c || true
           
-          # 🛑 FIX: MODULE BYPASS
+          # 🛑 FIX: MODULE BYPASS (Forces hardware drivers to load)
           sed -i 's/return -ENOEXEC;/return 0;/g' kernel/module.c || true
           sed -i 's/same_magic = !strcmp(vermagic, modmagic);/same_magic = 1;/g' kernel/module.c || true
 
-          # 🛑 SAMSUNG SPECIFIC TYPOS & PROTOTYPES
+          # 🛑 SAMSUNG PROTOTYPE FIXES
           find techpack/display -name "*.c" -exec sed -i 's/static inline _/static inline u32 _/g' {} + || true
           sed -i 's/static int get_boot_mode()/static int get_boot_mode(void)/g' drivers/power/supply/wt_charger/wt_chg.c || true
 
@@ -63,7 +66,7 @@ jobs:
           
           FLAGS="ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 HOSTCC=gcc CC=clang -j$(nproc --all)"
           
-          # Added -Wno-strict-prototypes to skip the zsmalloc-style errors
+          # Skip minor style errors to ensure the build finishes
           K_CFLAGS="-DCONFIG_KSU=1 -DCONFIG_KSU_NEXT=1 -DKSU_NEXT=1 -Wno-error -Wno-strict-prototypes -Wno-implicit-function-declaration"
           
           make $FLAGS Image KCFLAGS="$K_CFLAGS"
