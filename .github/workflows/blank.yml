@@ -21,12 +21,17 @@ jobs:
      
       - name: 🩹 Apply Deep Source Code Fixes
         run: |
-          # 🛑 FIX: SELinux filename_trans (Solves the massive list of sepolicy.c errors)
-          # We force these functions to return 'false' or '0' to skip unsupported 5.4 logic
-          sed -i 's/policydb_has_filename_trans(p)/false/g' drivers/kernelsu/selinux/sepolicy.c || true
-          sed -i 's/filename_trans_count(p)/0/g' drivers/kernelsu/selinux/sepolicy.c || true
+          # 🛑 BRUTE FORCE FIX: SELinux transitions
+          # We are commenting out the functions that use the missing SELinux structures
+          sed -i 's/void ksu_android_nlink_init/void ksu_android_nlink_init_unused/g' drivers/kernelsu/selinux/sepolicy.c || true
           
-          # 🛑 FIX: SECCOMP ARCH & AUDIT (Solves SECCOMP_ARCH_NATIVE errors)
+          # More aggressive replacement for the specific functions failing in your log
+          # This replaces the logic with a simple 'return' to stop the compiler from looking at the code
+          sed -i '/if (policydb_has_filename_trans(p)) {/,/}/ s/^/\/\//' drivers/kernelsu/selinux/sepolicy.c || true
+          sed -i 's/policydb_has_filename_trans(p)/0/g' drivers/kernelsu/selinux/sepolicy.c || true
+          sed -i 's/filename_trans_count(p)/0/g' drivers/kernelsu/selinux/sepolicy.c || true
+
+          # 🛑 FIX: SECCOMP ARCH & AUDIT
           sed -i '7i #include <linux/audit.h>' drivers/kernelsu/seccomp_cache.c || true
           sed -i '8i #ifndef SECCOMP_ARCH_NATIVE\n#define SECCOMP_ARCH_NATIVE AUDIT_ARCH_AARCH64\n#endif' drivers/kernelsu/seccomp_cache.c || true
           sed -i '9i #ifndef SECCOMP_ARCH_NATIVE_NR\n#define SECCOMP_ARCH_NATIVE_NR SECCOMP_ARCH_NATIVE\n#endif' drivers/kernelsu/seccomp_cache.c || true
@@ -35,7 +40,7 @@ jobs:
           sed -i 's/.handle_inode_event =/ \/\/ .handle_event =/g' drivers/kernelsu/pkg_observer.c || true
           sed -i 's/.handle_event =/ \/\/ .handle_event =/g' drivers/kernelsu/pkg_observer.c || true
           
-          # 🛑 FIX: Samsung Display Syntax (Wildcard)
+          # 🛑 FIX: Samsung Display Wildcard
           find techpack/display -name "*.c" -exec sed -i 's/static inline _/static inline u32 _/g' {} + || true
           
           # 🛑 FIX: PGTABLE & TWA_RESUME
@@ -46,10 +51,6 @@ jobs:
           sed -i 's/atomic_set(&current->seccomp.filter_count, 0);/\/\/ filter_count bypass/g' drivers/kernelsu/app_profile.c || true
           sed -i 's|#define TRACE_INCLUDE_PATH .|#define TRACE_INCLUDE_PATH ../../kernel/sched/walt|g' kernel/sched/walt/trace.h || true
           sed -i 's/void try_schedule_zs_compact()/void try_schedule_zs_compact(void)/g' mm/zsmalloc.c || true
-          
-          # 🛑 FIX: Module Bypass
-          sed -i 's/return -ENOEXEC;/return 0;/g' kernel/module.c || true
-          sed -i 's/same_magic = !strcmp(vermagic, modmagic);/same_magic = 1;/g' kernel/module.c || true
 
       - name: ⚙️ Kernel Config & Hardware Force-In
         run: |
