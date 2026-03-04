@@ -21,16 +21,18 @@ jobs:
      
       - name: 🩹 Apply Deep Source Code Fixes
         run: |
-          # 🛑 FIX: KSU Pkg Observer Pointer Mismatch (Solves 'incompatible function pointer' error)
-          # We force the entire struct to null to bypass the strict type check on older kernels
+          # 🛑 FIX: SECCOMP NATIVE NR (Solves undeclared identifier 'SECCOMP_ARCH_NATIVE_NR')
+          # We define the missing constant to match the 5.4 kernel's architecture check
+          sed -i '7i #ifndef SECCOMP_ARCH_NATIVE_NR\n#define SECCOMP_ARCH_NATIVE_NR SECCOMP_ARCH_NATIVE\n#endif' drivers/kernelsu/seccomp_cache.c || true
+
+          # 🛑 FIX: KSU Pkg Observer Pointer
           sed -i 's/.handle_inode_event =/ \/\/ .handle_event =/g' drivers/kernelsu/pkg_observer.c || true
           sed -i 's/.handle_event =/ \/\/ .handle_event =/g' drivers/kernelsu/pkg_observer.c || true
           
-          # 🛑 FIX: Samsung Display Syntax (Multiple files)
-          # Using a wildcard to fix ALL display hardware files with this 'static inline _' typo
+          # 🛑 FIX: Samsung Display Syntax (Wildcard fix for all display files)
           find techpack/display -name "*.c" -exec sed -i 's/static inline _/static inline u32 _/g' {} + || true
           
-          # 🛑 FIX: PGTABLE & TWA_RESUME for 5.4
+          # 🛑 FIX: PGTABLE & TWA_RESUME
           sed -i 's/<linux\/pgtable.h>/<asm\/pgtable.h>/g' drivers/kernelsu/*.c || true
           sed -i 's/TWA_RESUME/true/g' drivers/kernelsu/*.c || true
           
