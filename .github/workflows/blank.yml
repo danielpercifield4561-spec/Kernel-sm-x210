@@ -1,4 +1,4 @@
-name: Build Tab A9+ Custom Kernel (Mobile Command)
+name: Build Tab A9+ Standard GKI (No KSU)
 on:
   workflow_dispatch:
 
@@ -15,37 +15,21 @@ jobs:
       - name: 📥 Checkout Kernel Source
         uses: actions/checkout@v4
 
-      - name: 📥 Integrate KernelSU-Next
-        run: |
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
-     
       - name: 🩹 Apply Deep Source Code Fixes
         run: |
-          # 🛑 FIX: SELinux filename_trans (Solves the massive list of sepolicy.c errors)
-          # We force these functions to return 'false' or '0' to skip unsupported 5.4 logic
-          sed -i 's/policydb_has_filename_trans(p)/false/g' drivers/kernelsu/selinux/sepolicy.c || true
-          sed -i 's/filename_trans_count(p)/0/g' drivers/kernelsu/selinux/sepolicy.c || true
+          # 🛑 FIX: Strip 'q' from GKI (Force standard GKI identity)
+          # This replaces 'qgki' with 'gki' in the config and Makefiles
+          find . -type f -name "gta9pwifi_eur_open_defconfig" -exec sed -i 's/qgki/gki/g' {} + || true
+          sed -i 's/qgki/gki/g' Makefile || true
           
-          # 🛑 FIX: SECCOMP ARCH & AUDIT (Solves SECCOMP_ARCH_NATIVE errors)
-          sed -i '7i #include <linux/audit.h>' drivers/kernelsu/seccomp_cache.c || true
-          sed -i '8i #ifndef SECCOMP_ARCH_NATIVE\n#define SECCOMP_ARCH_NATIVE AUDIT_ARCH_AARCH64\n#endif' drivers/kernelsu/seccomp_cache.c || true
-          sed -i '9i #ifndef SECCOMP_ARCH_NATIVE_NR\n#define SECCOMP_ARCH_NATIVE_NR SECCOMP_ARCH_NATIVE\n#endif' drivers/kernelsu/seccomp_cache.c || true
-
-          # 🛑 FIX: KSU Pkg Observer Pointer
-          sed -i 's/.handle_inode_event =/ \/\/ .handle_event =/g' drivers/kernelsu/pkg_observer.c || true
-          sed -i 's/.handle_event =/ \/\/ .handle_event =/g' drivers/kernelsu/pkg_observer.c || true
-          
-          # 🛑 FIX: Samsung Display Syntax (Wildcard)
-          find techpack/display -name "*.c" -exec sed -i 's/static inline _/static inline u32 _/g' {} + || true
-          
-          # 🛑 FIX: PGTABLE & TWA_RESUME
-          sed -i 's/<linux\/pgtable.h>/<asm\/pgtable.h>/g' drivers/kernelsu/*.c || true
-          sed -i 's/TWA_RESUME/true/g' drivers/kernelsu/*.c || true
-          
-          # 🛑 FIX: SECCOMP & WALT Trace
-          sed -i 's/atomic_set(&current->seccomp.filter_count, 0);/\/\/ filter_count bypass/g' drivers/kernelsu/app_profile.c || true
+          # 🛑 FIX: WALT TRACING Path
           sed -i 's|#define TRACE_INCLUDE_PATH .|#define TRACE_INCLUDE_PATH ../../kernel/sched/walt|g' kernel/sched/walt/trace.h || true
+          
+          # 🛑 FIX: ZSMALLOC Prototypes
           sed -i 's/void try_schedule_zs_compact()/void try_schedule_zs_compact(void)/g' mm/zsmalloc.c || true
+
+          # 🛑 FIX: Samsung Display Syntax (Wildcard fix for all display files)
+          find techpack/display -name "*.c" -exec sed -i 's/static inline _/static inline u32 _/g' {} + || true
           
           # 🛑 FIX: Module Bypass
           sed -i 's/return -ENOEXEC;/return 0;/g' kernel/module.c || true
@@ -53,25 +37,33 @@ jobs:
 
       - name: ⚙️ Kernel Config & Hardware Force-In
         run: |
+          # Use the patched defconfig
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gta9pwifi_eur_open_defconfig
+          
+          # Force WiFi and Sensors to be Built-in
           ./scripts/config --file .config --enable CONFIG_WLAN
           ./scripts/config --file .config --set-val CONFIG_QCACLD_WLAN y
           ./scripts/config --file .config --enable CONFIG_INPUT_SENSORHUB
           ./scripts/config --file .config --enable CONFIG_SENSORS_SSC
-          ./scripts/config --file .config --enable CONFIG_KSU
-          ./scripts/config --file .config --enable CONFIG_KSU_NEXT
-          ./scripts/config --file .config --set-str CONFIG_LOCALVERSION "-everything-works"
+          
+          # Identity
+          ./scripts/config --file .config --set-str CONFIG_LOCALVERSION "-everything-works-gki"
+          
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 
       - name: 🔨 Compile
         run: |
+          # Satisfy Samsung's version check string
           echo "-28972655-abX210XXS6CYB9" > .scmversion
           export LOCALVERSION=""
           FLAGS="ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 HOSTCC=gcc CC=clang -j$(nproc --all)"
-          K_CFLAGS="-DCONFIG_KSU=1 -DCONFIG_KSU_NEXT=1 -DKSU_NEXT=1 -Wno-error -Wno-strict-prototypes -Wno-implicit-function-declaration"
+          
+          # Normal compiler flags without KSU definitions
+          K_CFLAGS="-Wno-error -Wno-strict-prototypes -Wno-implicit-function-declaration"
+          
           make $FLAGS Image KCFLAGS="$K_CFLAGS" 2>&1 | tee build.log
 
-      - name: 📋 Build Summary (Errors & Warnings)
+      - name: 📋 Build Summary
         if: always()
         run: |
           echo "::group::⚠️ VIEW ALL WARNINGS"
@@ -87,7 +79,7 @@ jobs:
           if [ -f arch/arm64/boot/Image ]; then
             git clone https://github.com/osm0sis/AnyKernel3.git
             cp arch/arm64/boot/Image AnyKernel3/
-            cd AnyKernel3 && zip -r9 ../TabA9Plus-KSU-Final.zip *
+            cd AnyKernel3 && zip -r9 ../TabA9Plus-GKI-Pure.zip *
           else
             exit 1
           fi
@@ -96,5 +88,5 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: TabA9Plus-KSU-Final
-          path: TabA9Plus-KSU-Final.zip
+          name: TabA9Plus-GKI-Pure
+          path: TabA9Plus-GKI-Pure.zip
