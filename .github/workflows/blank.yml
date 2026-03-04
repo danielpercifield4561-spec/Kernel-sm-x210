@@ -35,6 +35,10 @@ jobs:
           sed -i 's/return -ENOEXEC;/return 0;/g' kernel/module.c || true
           sed -i 's/same_magic = !strcmp(vermagic, modmagic);/same_magic = 1;/g' kernel/module.c || true
 
+          # This fixes the Line 97 error and others in the minidump log
+          sed -i 's/static md_dump_slabinfo/static int md_dump_slabinfo/g' drivers/soc/qcom/minidump_log.c || true
+          sed -i 's/static md_align_offset/static int md_align_offset/g' drivers/soc/qcom/minidump_log.c || true
+
       - name: ⚙️ Kernel Config & Hardware Force-In
         run: |
           # Use the patched defconfig
