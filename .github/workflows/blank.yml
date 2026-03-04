@@ -21,8 +21,12 @@ jobs:
      
       - name: 🩹 Apply Deep Source Code Fixes
         run: |
-          # 🛑 FIX: SECCOMP ARCH DEFINITIONS (Solves 'undeclared identifier SECCOMP_ARCH_NATIVE')
-          # We manually define the audit architecture for ARM64 (Tab A9+)
+          # 🛑 FIX: SELinux Policy Incompatibility (Solves 'filename_trans_key' errors)
+          # We bypass the problematic transition patches that don't exist in 5.4
+          sed -i 's/policydb_has_filename_trans(p)/false/g' drivers/kernelsu/selinux/sepolicy.c || true
+          sed -i 's/filename_trans_count(p)/0/g' drivers/kernelsu/selinux/sepolicy.c || true
+          
+          # 🛑 FIX: SECCOMP ARCH DEFINITIONS
           sed -i '7i #include <linux/audit.h>' drivers/kernelsu/seccomp_cache.c || true
           sed -i '8i #ifndef SECCOMP_ARCH_NATIVE\n#define SECCOMP_ARCH_NATIVE AUDIT_ARCH_AARCH64\n#endif' drivers/kernelsu/seccomp_cache.c || true
           sed -i '9i #ifndef SECCOMP_ARCH_NATIVE_NR\n#define SECCOMP_ARCH_NATIVE_NR SECCOMP_ARCH_NATIVE\n#endif' drivers/kernelsu/seccomp_cache.c || true
